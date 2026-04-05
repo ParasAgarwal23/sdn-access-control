@@ -18,8 +18,11 @@ Allow only authorized hosts to communicate within the network using an SDN contr
 This project implements an SDN-based access control system using:
 - **Mininet** — network emulation
 - **Ryu** — OpenFlow 1.3 SDN controller
+- **OpenFlow 1.3** — used for match-action rule enforcement on the switch
 
 The controller enforces a host whitelist. Only whitelisted IP pairs are permitted to communicate. All other IP traffic is silently dropped at the switch level using OpenFlow flow rules.
+
+When a new flow's first packet arrives at the switch with no matching rule, it triggers a **packet_in event**, sending the packet up to the Ryu controller. The controller inspects the source and destination IP, checks the whitelist, and installs an appropriate allow or drop flow rule back on the switch — so all future packets of that flow are handled at line rate without involving the controller again.
 
 ---
 
@@ -33,6 +36,18 @@ h3 (10.0.0.3) ─┘
 
 - **h1 and h2** — Authorized (whitelisted, can communicate freely)
 - **h3** — Unauthorized (all traffic blocked by controller)
+
+---
+
+## Topology and Design Justification
+
+A **single switch topology** was chosen for this project for the following reasons:
+
+- **Simplicity and clarity** — Access control logic is best demonstrated on a flat topology where all enforcement happens at one switch, making flow rule behavior easy to observe and verify.
+- **Sufficient for the problem** — The goal is to demonstrate whitelist-based host filtering. A single switch with 3 hosts (2 authorized, 1 unauthorized) cleanly covers all test scenarios: authorized communication, unauthorized blocking, and mixed connectivity.
+- **Scalable design** — The whitelist in `access_control.py` is a simple list that can be extended to any number of host pairs without changing the controller logic, making it easy to scale to larger topologies.
+- **Ryu chosen over POX** — Ryu is actively maintained, supports OpenFlow 1.3, and has better Python 3 compatibility, making it more suitable for this project.
+- **OpenFlow 1.3 chosen** — Provides fine-grained match fields (src/dst IP), priority-based rule ordering, and idle timeouts — all needed for clean access control enforcement.
 
 ---
 
@@ -52,7 +67,8 @@ sdn-access-control/
 ## Features
 
 - Whitelist-based host access control
-- Dynamic OpenFlow flow rule installation (allow/deny)
+- Dynamic OpenFlow flow rule installation (allow/deny) via packet_in events
+- Uses OpenFlow 1.3 for match-action rule enforcement
 - MAC learning to avoid unnecessary flooding
 - Automatic rule expiry via idle timeout
 - Real-time ALLOW/BLOCK logging from controller
@@ -101,7 +117,7 @@ cd sdn-access-control
 
 ## Execution
 
-### Step 1 — Start Ryu Controller (Terminal 1)
+### Step 1 — Start Ryu Controller (Terminal 2)
 
 ```bash
 python3 -m ryu.cmd.manager access_control.py
@@ -109,13 +125,25 @@ python3 -m ryu.cmd.manager access_control.py
 
 ![Ryu Controller Startup](screenshots/2.png)
 
-### Step 2 — Start Mininet Topology (Terminal 2)
+### Step 2 — Start Mininet Topology (Terminal 1)
 
 ```bash
 sudo python3 topology.py
 ```
 
 ![Topology Startup](screenshots/1.png)
+
+---
+
+## SDN Controller Logic
+
+The `access_control.py` Ryu controller works as follows:
+
+1. **Switch connects** — A default table-miss rule is installed at priority 0, sending all unmatched packets to the controller.
+2. **packet_in event** — The first packet of any new flow has no matching rule on the switch, so it is sent to the controller.
+3. **Whitelist check** — The controller extracts the source and destination IP from the packet and checks against the whitelist.
+4. **Flow rule installation** — If authorized, a high-priority allow rule is pushed to the switch. If unauthorized, a high-priority drop rule (empty action list) is pushed instead.
+5. **Subsequent packets** — All future packets of that flow are handled directly by the switch at line rate, without involving the controller again.
 
 ---
 
@@ -166,7 +194,9 @@ mininet> sh ovs-ofctl dump-flows s1
 
 ![Flow Table Dump](screenshots/7.png)
 
-Shows the OpenFlow rules installed on switch s1 by the Ryu controller.
+**Explanation:**
+- Flow rules match on source and destination IP addresses.
+- Authorized traffic is forwarded to the correct port, while unauthorized traffic is dropped by installing no-action (drop) rules with higher priority than the default table-miss rule.
 
 ---
 
@@ -189,9 +219,9 @@ mininet> h2 iperf -c h1
 
 ---
 
-### Test 5 — Scenario Verification (Allowed vs Blocked)
+### Test 5 — Scenario Verification (All Directions)
 
-Re-running all combinations to verify consistent behavior:
+Re-running all combinations to verify consistent behavior across all host pairs:
 
 **Terminal 1 (Mininet):**
 
@@ -220,6 +250,8 @@ sudo python3 regression_test.py
 ![Regression Test Results](screenshots/13.png)
 
 **Result:** ALL TESTS PASSED — Policy is consistent ✓
+
+The regression test re-runs all access control scenarios automatically and verifies that the whitelist policy has not regressed after any code changes.
 
 ---
 
