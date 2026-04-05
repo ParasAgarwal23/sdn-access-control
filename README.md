@@ -117,7 +117,7 @@ cd sdn-access-control
 
 ## Execution
 
-### Step 1 — Start Ryu Controller (Terminal 2)
+### Step 1 — Start Ryu Controller (Terminal 1)
 
 ```bash
 python3 -m ryu.cmd.manager access_control.py
@@ -125,7 +125,7 @@ python3 -m ryu.cmd.manager access_control.py
 
 ![Ryu Controller Startup](screenshots/2.png)
 
-### Step 2 — Start Mininet Topology (Terminal 1)
+### Step 2 — Start Mininet Topology (Terminal 2)
 
 ```bash
 sudo python3 topology.py
