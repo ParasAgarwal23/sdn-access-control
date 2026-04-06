@@ -117,7 +117,7 @@ cd sdn-access-control
 
 ## Execution
 
-### Step 1 — Start Ryu Controller (Terminal 1)
+### Step 1 — Start Ryu Controller (Terminal 2)
 
 ```bash
 python3 -m ryu.cmd.manager access_control.py
@@ -125,7 +125,7 @@ python3 -m ryu.cmd.manager access_control.py
 
 ![Ryu Controller Startup](screenshots/2.png)
 
-### Step 2 — Start Mininet Topology (Terminal 2)
+### Step 2 — Start Mininet Topology (Terminal 1)
 
 ```bash
 sudo python3 topology.py
@@ -252,6 +252,47 @@ sudo python3 regression_test.py
 **Result:** ALL TESTS PASSED — Policy is consistent ✓
 
 The regression test re-runs all access control scenarios automatically and verifies that the whitelist policy has not regressed after any code changes.
+
+---
+
+### Test 7 — Wireshark Packet Capture Verification
+
+Wireshark was used to verify actual packet flow at the network level, capturing on interface **s1-eth1**.
+
+#### Authorized Traffic — h1 → h2 (packets visible)
+
+```bash
+mininet> h1 ping -c 5 h2
+```
+
+![Wireshark h1 to h2 authorized](screenshots/14.png)
+
+Wireshark confirms ICMP echo requests and replies between 10.0.0.1 and 10.0.0.2. Ryu logs show [ALLOW] decisions. 0% packet loss confirmed.
+
+---
+
+#### Authorized Traffic — h2 → h1 (packets visible)
+
+```bash
+mininet> h2 ping -c 5 h1
+```
+
+![Wireshark h2 to h1 authorized](screenshots/15.png)
+
+Wireshark confirms bidirectional authorized communication. ICMP packets flow freely between the two whitelisted hosts.
+
+---
+
+#### Unauthorized Traffic — h3 ↔ h1 (no packets)
+
+```bash
+mininet> h3 ping -c 5 h1
+mininet> h1 ping -c 5 h3
+```
+
+![Wireshark blocked traffic](screenshots/16.png)
+
+Wireshark shows no ICMP packets for unauthorized traffic. The controller installs drop rules, blocking all communication to and from h3. 100% packet loss confirmed.
 
 ---
 
