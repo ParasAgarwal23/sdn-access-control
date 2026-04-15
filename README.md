@@ -70,7 +70,7 @@ sdn-access-control/
 - Dynamic OpenFlow flow rule installation (allow/deny) via packet_in events
 - Uses OpenFlow 1.3 for match-action rule enforcement
 - MAC learning to avoid unnecessary flooding
-- Automatic rule expiry via idle timeout
+- Permanent flow rules (no expiry) for stable access control
 - Real-time ALLOW/BLOCK logging from controller
 - Automated regression testing for policy consistency
 
@@ -169,24 +169,7 @@ mininet> h3 ping -c 3 h1
 
 ---
 
-### Test 2 — Full Connectivity Matrix (pingall)
-
-**Terminal 1 (Mininet):**
-```bash
-mininet> pingall
-```
-
-![pingall - Mininet](screenshots/5.png)
-
-**Terminal 2 (Ryu) — Controller logs showing all decisions:**
-
-![pingall - Ryu Logs](screenshots/6.png)
-
-**Result:** 66% dropped — only h1 ↔ h2 allowed (2/6 received) ✓
-
----
-
-### Test 3 — Flow Table Dump
+### Test 2 — Flow Table Dump
 
 ```bash
 mininet> sh ovs-ofctl dump-flows s1
@@ -196,11 +179,13 @@ mininet> sh ovs-ofctl dump-flows s1
 
 **Explanation:**
 - Flow rules match on source and destination IP addresses.
-- Authorized traffic is forwarded to the correct port, while unauthorized traffic is dropped by installing no-action (drop) rules with higher priority than the default table-miss rule.
+- Authorized traffic is forwarded to the correct port via `actions=output` rules at priority 10.
+- Unauthorized traffic is dropped via `actions=drop` rules at priority 10.
+- The table-miss rule at priority 0 sends any unknown flow to the controller for a whitelist decision.
 
 ---
 
-### Test 4 — Throughput Test (iperf)
+### Test 3 — Throughput Test (iperf)
 
 ```bash
 mininet> h1 iperf -s &
@@ -219,7 +204,7 @@ mininet> h2 iperf -c h1
 
 ---
 
-### Test 5 — Scenario Verification (All Directions)
+### Test 4 — Scenario Verification (All Directions)
 
 Re-running all combinations to verify consistent behavior across all host pairs:
 
@@ -239,7 +224,7 @@ Re-running all combinations to verify consistent behavior across all host pairs:
 
 ---
 
-### Test 6 — Regression Test (Policy Consistency)
+### Test 5 — Regression Test (Policy Consistency)
 
 Exit Mininet first, then run:
 
@@ -255,7 +240,7 @@ The regression test re-runs all access control scenarios automatically and verif
 
 ---
 
-### Test 7 — Wireshark Packet Capture Verification
+### Test 6 — Wireshark Packet Capture Verification
 
 Wireshark was used to verify actual packet flow at the network level, capturing on interface **s1-eth1**.
 
