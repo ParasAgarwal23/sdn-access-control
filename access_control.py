@@ -152,7 +152,7 @@ class AccessControl(app_manager.RyuApp):
                 # so the controller can install the rule once the port is learned.
                 if out_port != ofproto.OFPP_FLOOD:
                     self.add_flow(datapath, priority=10, match=match,
-                                  actions=actions, idle_timeout=30)
+                                  actions=actions, idle_timeout=0)
 
             else:
                 # BLOCKED: install a drop rule (empty action list = drop)
@@ -163,7 +163,7 @@ class AccessControl(app_manager.RyuApp):
                     ipv4_dst=dst_ip
                 )
                 self.add_flow(datapath, priority=10, match=match,
-                              actions=[], idle_timeout=30)
+                              actions=[], idle_timeout=0)
                 return  # drop this packet, don't forward
 
         else:
