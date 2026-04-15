@@ -145,10 +145,14 @@ class AccessControl(app_manager.RyuApp):
                     ipv4_src=src_ip,
                     ipv4_dst=dst_ip
                 )
-                # Priority 10 overrides the table-miss rule (priority 0)
-                # idle_timeout=30: rule removed after 30s of no matching traffic
-                self.add_flow(datapath, priority=10, match=match,
-                              actions=actions, idle_timeout=30)
+                # Only install flow rule when output port is known (not FLOOD).
+                # Installing a rule with OFPP_FLOOD as action is invalid —
+                # it would lock in flooding permanently instead of learning the port.
+                # When port is unknown, we let the packet_in fire again next time
+                # so the controller can install the rule once the port is learned.
+                if out_port != ofproto.OFPP_FLOOD:
+                    self.add_flow(datapath, priority=10, match=match,
+                                  actions=actions, idle_timeout=30)
 
             else:
                 # BLOCKED: install a drop rule (empty action list = drop)
