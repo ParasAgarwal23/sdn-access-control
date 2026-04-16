@@ -51,6 +51,9 @@ class AccessControl(app_manager.RyuApp):
         # so we don't have to flood every packet.
         self.mac_to_port = {}
 
+        # ADDED: whitelist activity log
+        self.whitelist_log = set()
+
     # -------------------------------------------------------------------------
     # EVENT: Switch connects to controller
     # Triggered once per switch when it first connects.
@@ -139,17 +142,17 @@ class AccessControl(app_manager.RyuApp):
             if (src_ip, dst_ip) in WHITELIST:
                 # ALLOWED: install a flow rule to forward future packets directly
                 self.logger.info("[ALLOW] %s -> %s (port %s)", src_ip, dst_ip, out_port)
+
+                # ADDED: log active whitelist usage
+                self.whitelist_log.add((src_ip, dst_ip))
+                self.logger.info("[WHITELIST LOG] %s", self.whitelist_log)
+
                 actions = [parser.OFPActionOutput(out_port)]
                 match = parser.OFPMatch(
                     eth_type=0x0800,   # 0x0800 = IPv4
                     ipv4_src=src_ip,
                     ipv4_dst=dst_ip
                 )
-                # Only install flow rule when output port is known (not FLOOD).
-                # Installing a rule with OFPP_FLOOD as action is invalid —
-                # it would lock in flooding permanently instead of learning the port.
-                # When port is unknown, we let the packet_in fire again next time
-                # so the controller can install the rule once the port is learned.
                 if out_port != ofproto.OFPP_FLOOD:
                     self.add_flow(datapath, priority=10, match=match,
                                   actions=actions, idle_timeout=0)
