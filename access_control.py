@@ -29,8 +29,8 @@ from ryu.lib.packet import packet, ethernet, ipv4
 # h3 (10.0.0.3)                    : UNAUTHORIZED (not listed here)
 # -----------------------------------------------------------------------------
 WHITELIST = [
-    ("10.0.0.1", "10.0.0.2")  # h1 -> h2 : allowed
-     # h2 -> h1 : allowed
+    ("10.0.0.1", "10.0.0.2"),  # h1 -> h2 : allowed
+    ("10.0.0.1", "10.0.0.2") # h2 -> h1 : allowed
 ]
 
 
